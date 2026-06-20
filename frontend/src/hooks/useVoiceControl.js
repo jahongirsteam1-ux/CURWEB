@@ -17,6 +17,7 @@ export function useVoiceControl(options = {}) {
   const recognitionRef = useRef(null);
   const activeTimeoutRef = useRef(null);
   const stateRef = useRef('idle'); // React State kechikishi uchun ref ishlatiladi
+  const isIntentionalStopRef = useRef(false);
 
   // Status ref-ni yangilab borish
   useEffect(() => {
@@ -33,7 +34,7 @@ export function useVoiceControl(options = {}) {
     console.log('[Voice] Holat: idle (Wake-word kutilmoqda...)');
   }, []);
 
-  // Salom CurWeb wake-word eshitilganda faol rejimga o'tish
+  // Salom CurWeb wake-word eshitilganda faol rejimga o'tish yoki tugma orqali
   const activateCommandListening = useCallback(() => {
     if (activeTimeoutRef.current) {
       clearTimeout(activeTimeoutRef.current);
@@ -63,21 +64,15 @@ export function useVoiceControl(options = {}) {
   const handleSpeechResult = useCallback((event) => {
     const resultIndex = event.resultIndex;
     const transcript = event.results[resultIndex][0].transcript.trim();
-    const isFinal = event.results[resultIndex][0].confidence > 0.3; // isFinal tekshiruvi
+    const isFinal = event.results[resultIndex].isFinal || event.results[resultIndex][0].confidence > 0.3;
 
     if (!transcript || !isFinal) return;
 
     setLastTranscript(transcript);
     console.log(`[Speech API] Aniqlandi: "${transcript}" (Holat: ${stateRef.current})`);
 
-    // 1. Wake-word rejimida
-    if (stateRef.current === 'idle') {
-      if (checkWakeWord(transcript)) {
-        activateCommandListening();
-      }
-    } 
-    // 2. Buyruq kutish rejimida
-    else if (stateRef.current === 'listening') {
+    // Agar allaqachon activeState = listening bo'lsa (masalan tugma bosilgan bo'lsa), to'g'ridan-to'g'ri buyruqni tekshiramiz
+    if (stateRef.current === 'listening') {
       const parsed = parseVoiceCommand(transcript);
       
       if (parsed) {
@@ -91,7 +86,6 @@ export function useVoiceControl(options = {}) {
           });
         }
       } else {
-        // Agar tushunarsiz buyruq bo'lsa va u "Salom CurWeb" bo'lmasa
         if (!checkWakeWord(transcript)) {
           resetToIdle();
           if (triggerHaptic) triggerHaptic('error');
@@ -103,27 +97,40 @@ export function useVoiceControl(options = {}) {
             });
           }
         } else {
-          // Agar yana wake-word aytilgan bo'lsa, vaqtni uzaytiramiz
-          activateCommandListening();
+          activateCommandListening(); // Yana vaqtni uzaytirish
         }
+      }
+    } 
+    // Idle holatida wake-word kutamiz
+    else if (stateRef.current === 'idle') {
+      if (checkWakeWord(transcript)) {
+        activateCommandListening();
       }
     }
   }, [activateCommandListening, resetToIdle, triggerHaptic, onCommandDetected]);
 
-  const startVoiceRecognition = useCallback(() => {
+  const startVoiceRecognition = useCallback((manualActive = false) => {
     if (!recognitionRef.current) return;
     try {
+      isIntentionalStopRef.current = false;
       recognitionRef.current.start();
       setIsListening(true);
       setError(null);
+      if (manualActive) {
+        activateCommandListening();
+      }
     } catch (err) {
       console.warn('SpeechRecognition allaqachon ishlamoqda yoki ulanolmadi.', err);
+      if (manualActive) {
+         activateCommandListening(); // Allaqachon ishlayotgan bo'lsa ham faollashtiramiz
+      }
     }
-  }, []);
+  }, [activateCommandListening]);
 
   const stopVoiceRecognition = useCallback(() => {
     if (!recognitionRef.current) return;
     try {
+      isIntentionalStopRef.current = true;
       recognitionRef.current.stop();
       setIsListening(false);
       resetToIdle();
@@ -137,34 +144,40 @@ export function useVoiceControl(options = {}) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       setIsSupported(false);
-      setError('Sizning brauzeringiz Web Speech API-ni qo\'llab-quvvatlamaydi. Chrome yoki Safari ishlatib ko\'ring.');
+      setError('Sizning brauzeringiz Web Speech API-ni qo\'llab-quvvatlamaydi. Ovozli boshqaruv ishlamaydi.');
       return;
     }
 
     const recognition = new SpeechRecognition();
-    recognition.continuous = true;
+    recognition.continuous = false; // iOS va Telegram WebApp uchun ishonchliroq ishlaydi
     recognition.interimResults = false;
-    recognition.lang = 'uz-UZ'; // O'zbek tiliga moslash
+    recognition.lang = 'uz-UZ';
 
     recognition.onresult = handleSpeechResult;
 
     recognition.onerror = (event) => {
       console.error('[Speech API] Xato yuz berdi:', event.error);
-      if (event.error === 'not-allowed') {
-        setError('Mikrofonga ruxsat berilmadi. Sozlamalardan mikrofonni yoqing.');
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        setError('Mikrofonga ruxsat berilmadi yoki xizmat band. Sozlamalarni tekshiring.');
+        setIsListening(false);
+        isIntentionalStopRef.current = true;
       }
     };
 
     recognition.onend = () => {
-      // Agar foydalanuvchi o'zi to'xtatmagan bo'lsa, avtomatik qayta ishga tushiramiz (continuous ishonchli ishlashi uchun)
-      if (isListening) {
+      if (!isIntentionalStopRef.current) {
+        // Avtomatik qayta ishga tushirish (Continuous o'rniga ishonchliroq usul)
         setTimeout(() => {
           try {
-            recognition.start();
+            if (!isIntentionalStopRef.current) {
+               recognitionRef.current?.start();
+            }
           } catch (e) {
-            // Allaqachon boshlangan bo'lishi mumkin
+            // e'tiborga olmaslik
           }
-        }, 300);
+        }, 400);
+      } else {
+        setIsListening(false);
       }
     };
 
@@ -172,15 +185,16 @@ export function useVoiceControl(options = {}) {
 
     return () => {
       if (recognitionRef.current) {
+        isIntentionalStopRef.current = true;
         recognitionRef.current.stop();
       }
     };
-  }, [handleSpeechResult, isListening]);
+  }, [handleSpeechResult]);
 
   return {
     isSupported,
     isListening,
-    activeState, // 'idle' | 'listening'
+    activeState,
     lastTranscript,
     error,
     startVoiceRecognition,

@@ -686,9 +686,15 @@ export default function App() {
             error={voiceError}
             onToggle={() => {
               if (isVoiceListening) {
-                stopVoiceRecognition();
+                if (voiceActiveState === 'listening') {
+                  // Agar qizil holda bo'lsa (eshtiyotgan bo'lsa), o'chiramiz
+                  stopVoiceRecognition();
+                } else {
+                  // Agar kutayotgan bo'lsa, manual faollashtiramiz
+                  startVoiceRecognition(true);
+                }
               } else {
-                startVoiceRecognition();
+                startVoiceRecognition(true); // Birinchi marta bosganda to'g'ridan-to'g'ri faol rejimda yonsin
               }
             }}
           />
