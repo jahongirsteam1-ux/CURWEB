@@ -158,7 +158,7 @@ export function useVoiceControl(options = {}) {
     recognition.onerror = (event) => {
       console.error('[Speech API] Xato yuz berdi:', event.error);
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-        setError('Mikrofonga ruxsat berilmadi yoki xizmat band. Sozlamalarni tekshiring.');
+        setError("Mikrofonga ruxsat yo'q. Telegram yuqori o'ng burchagidagi 3 nuqtani bosib, 'Brauzerda ochish' (Open in Browser) ni tanlang.");
         setIsListening(false);
         isIntentionalStopRef.current = true;
       }

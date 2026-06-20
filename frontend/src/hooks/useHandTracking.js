@@ -75,6 +75,16 @@ export function useHandTracking(onResultsCallback) {
     try {
       setError(null);
       
+      // EXPLICIT PERMISSION REQUEST: Telegram iOS WebApp ko'pincha ruxsatlarni to'g'ri so'ramaydi
+      // Shuning uchun MediaPipe-dan oldin o'zimiz majburiy so'raymiz
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        // Streamni darhol yopamiz, chunki MediaPipe o'zi yana ochadi
+        stream.getTracks().forEach(track => track.stop());
+      } catch (permErr) {
+        throw new Error("PERMISSION_DENIED");
+      }
+
       // 1. MediaPipe Hands obyektini sozlash
       const hands = new window.Hands({
         locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
@@ -138,7 +148,11 @@ export function useHandTracking(onResultsCallback) {
       }
     } catch (err) {
       console.error("Kamerani ochishda xatolik:", err);
-      setError("Kameraga ulanib bo'lmadi. Ruxsat berilganligini tekshiring.");
+      if (err.message === "PERMISSION_DENIED" || err.name === "NotAllowedError") {
+        setError("Kameraga ruxsat yo'q. Telegram yuqori o'ng burchagidagi 3 nuqtani bosib, 'Brauzerda ochish' (Open in Browser) ni tanlang.");
+      } else {
+        setError("Kameraga ulanib bo'lmadi. Ruxsat berilganligini tekshiring.");
+      }
       setIsActive(false);
     }
   }, [isActive, onResultsCallback, drawHandSkeleton]);
