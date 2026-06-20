@@ -3,73 +3,77 @@ import { Camera, CameraOff } from 'lucide-react';
 
 export default function CameraPiP({ videoRef, canvasRef, isActive, error, onStart }) {
   return (
-    <>
-      {/* MediaPipe uchun video va canvas - Safari o'chirib qo'ymasligi uchun ekranda to'liq ko'rinadigan, lekin main-container orqasiga o'tkazilgan (opacity: 1) */}
-      <div style={{ position: 'fixed', top: 0, left: 0, width: '320px', height: '240px', zIndex: -1, pointerEvents: 'none' }}>
-        {isActive && (
+    <div style={{
+      position: 'fixed',
+      top: '16px',
+      right: '16px',
+      zIndex: 9999,
+      width: '120px',
+      height: '160px',
+      background: 'rgba(10, 10, 15, 0.8)',
+      backdropFilter: 'blur(10px)',
+      border: '1px solid rgba(255, 255, 255, 0.1)',
+      borderRadius: '12px',
+      overflow: 'hidden',
+      boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+      display: 'flex',
+      flexDirection: 'column'
+    }}>
+      {/* Video Container */}
+      <div style={{ flex: 1, position: 'relative', background: '#000' }}>
+        {isActive ? (
           <>
+            {/* Safari requires video to be visible and have playsInline/autoPlay */}
             <video
               ref={videoRef}
               autoPlay
               playsInline
               muted
-              style={{ width: '320px', height: '240px' }}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                transform: 'scaleX(-1)' // Oyna (mirror) effekti
+              }}
             />
+            {/* MediaPipe qol harakatlarini chizish uchun canvas */}
             <canvas
               ref={canvasRef}
-              width={320}
-              height={240}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                pointerEvents: 'none'
+              }}
             />
           </>
+        ) : (
+          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
+            {error ? <CameraOff className="w-8 h-8 text-rose-400" /> : <Camera className="w-8 h-8 opacity-50" />}
+          </div>
         )}
       </div>
 
-      {/* Foydalanuvchiga ko'rinadigan indikator */}
-      <div style={{
-        position: 'fixed',
-        top: '16px',
-        right: '16px',
-        zIndex: 9999,
-        background: isActive && !error ? 'rgba(16, 185, 129, 0.9)' : 'rgba(30, 41, 59, 0.9)',
-        backdropFilter: 'blur(8px)',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        padding: '8px 12px',
-        borderRadius: '20px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-        transition: 'all 0.3s ease'
-      }}>
+      {/* Boshqaruv paneli */}
+      <div style={{ height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
         {isActive && !error ? (
-          <>
-            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#fff', animation: 'pulse 2s infinite' }} />
-            <span style={{ fontSize: '12px', fontWeight: '600', color: '#fff' }}>Kameraga ulandi</span>
-          </>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--success)', animation: 'pulse 2s infinite' }} />
+            <span style={{ fontSize: '11px', fontWeight: '600', color: '#fff' }}>Faol</span>
+          </div>
         ) : error ? (
-          <>
-            <CameraOff className="w-4 h-4 text-rose-400" />
-            <span style={{ fontSize: '12px', color: '#f87171' }}>Xatolik</span>
-          </>
+          <span style={{ fontSize: '10px', color: '#f87171', padding: '0 4px', textAlign: 'center' }}>Xatolik</span>
         ) : (
           <button 
             onClick={onStart}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              color: '#fff',
-              cursor: 'pointer',
-              padding: 0
-            }}
+            style={{ background: 'var(--accent-primary)', color: '#fff', border: 'none', padding: '4px 12px', borderRadius: '4px', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}
           >
-            <Camera className="w-4 h-4 text-slate-300" />
-            <span style={{ fontSize: '12px', fontWeight: '500' }}>Kamerani yoqish</span>
+            Yoqish
           </button>
         )}
       </div>
-    </>
+    </div>
   );
 }
