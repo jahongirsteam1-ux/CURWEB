@@ -1,0 +1,36 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                      String             @id @default(uuid())
+  telegram_id             String             @unique // BigInt ni String ko'rinishida saqlaymiz (JSON serialization xatolarini oldini olish uchun)
+  username                String?
+  subscription_tier       String             @default("free") // "free" yoki "premium"
+  subscription_expires_at DateTime?
+  created_at              DateTime           @default(now())
+  voice_command_logs      VoiceCommandLog[]
+}
+
+model Session {
+  session_id        String   @id @default(uuid())
+  controller_socket String?
+  receiver_socket   String?
+  status            String   @default("pending") // "pending", "paired", "disconnected"
+  created_at        DateTime @default(now())
+}
+
+model VoiceCommandLog {
+  id            String   @id @default(uuid())
+  user_id       String
+  user          User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  command       String
+  tier_required String
+  success       Boolean
+  timestamp     DateTime @default(now())
+}
