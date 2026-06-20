@@ -4,8 +4,8 @@ import { Camera, CameraOff } from 'lucide-react';
 export default function CameraPiP({ videoRef, canvasRef, isActive, error, onStart }) {
   return (
     <>
-      {/* MediaPipe uchun yashirin video va canvas - bularsiz tracking ishlamaydi */}
-      <div style={{ position: 'absolute', top: '-9999px', left: '-9999px', opacity: 0.01, pointerEvents: 'none' }}>
+      {/* MediaPipe uchun video va canvas - Safari o'chirib qo'ymasligi uchun ekranda, lekin orqada yashiringan */}
+      <div style={{ position: 'fixed', top: 0, left: 0, width: '10px', height: '10px', zIndex: -9999, opacity: 0.01, overflow: 'hidden', pointerEvents: 'none' }}>
         {isActive && (
           <>
             <video
