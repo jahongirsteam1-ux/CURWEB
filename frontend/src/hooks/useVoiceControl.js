@@ -109,19 +109,12 @@ export function useVoiceControl(options = {}) {
     }
   }, [activateCommandListening, resetToIdle, triggerHaptic, onCommandDetected]);
 
-  const startVoiceRecognition = useCallback(async (manualActive = false) => {
+  const startVoiceRecognition = useCallback((manualActive = false) => {
     if (!recognitionRef.current) return;
     
     try {
-      // EXPLICIT PERMISSION REQUEST: Safari-da ruxsat so'rovi aniq chiqishi uchun
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach(track => track.stop());
-      } catch (permErr) {
-        throw new Error("PERMISSION_DENIED");
-      }
-
       isIntentionalStopRef.current = false;
+      // Safari requires this to be synchronous to the user gesture!
       recognitionRef.current.start();
       setIsListening(true);
       setError(null);
@@ -130,10 +123,7 @@ export function useVoiceControl(options = {}) {
       }
     } catch (err) {
       console.warn('SpeechRecognition allaqachon ishlamoqda yoki ulanolmadi.', err);
-      if (err.message === "PERMISSION_DENIED") {
-        setError("Mikrofonga ruxsat yo'q. Safari sozlamalarida ushbu sayt uchun mikrofonni yoqing.");
-        setIsListening(false);
-      } else if (manualActive) {
+      if (manualActive) {
          activateCommandListening(); // Allaqachon ishlayotgan bo'lsa ham faollashtiramiz
       }
     }
